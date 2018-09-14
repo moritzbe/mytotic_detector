@@ -44,14 +44,22 @@ for csv_path in sorted(glob.glob(file_path + "*.csv")):
     all_annotation_txt = np.genfromtxt(csv_path, dtype = 'str', comments='#', delimiter="',\n'", skip_header=0, skip_footer=0, converters=None, missing_values=None, filling_values=None, usecols=None, names=None, excludelist=None, deletechars=None, replace_space='_', autostrip=False, case_sensitive=True, defaultfmt='f%i', unpack=None, usemask=False, loose=True, invalid_raise=True, max_rows=None, encoding='bytes')
     image = misc.imread(csv_path.replace(".csv", ".png"))/255
     mask = misc.imread(csv_path.replace(".csv", ".jpg"))/255
-    better_mask = create_better_mask()
+    cells_in_image = []
+    better_mask = np.zeros_like(image[:,:,0])
+    for cell_string in np.nditer(all_annotation_txt):
+        cell_array = np.fromstring(np.array2string(cell_string).strip("'"), dtype=int, sep=",")
+        cell_array = np.flip(np.reshape(cell_array, (-1,2)),1)
+        cells_in_image.append(cell_array)
+        better_mask[cell_array[:,0],cell_array[:,1]]=1
+
+
 
 margin = np.round(bounding_box_size/2).astype(int)
 pad_image = np.pad(image[:,:,:3], ((margin,margin),(margin,margin),(0,0)), mode="constant", constant_values=0)
 pad_image = np.swapaxes(pad_image, 0,2)
 yields = np.zeros_like(image[:,:,0])
 
-stepSize=4
+stepSize=2
 for x in range(0, image.shape[0], stepSize):
     for y in range(0, image.shape[1], stepSize):
         yields[x,y] = model.predict(np.expand_dims(pad_image[:,x:x+2*margin,y:y+2*margin].astype('float32'), axis=0), batch_size=1, verbose=3)[0][1]
@@ -59,7 +67,7 @@ for x in range(0, image.shape[0], stepSize):
 
 fig, axs = plt.subplots(2, 2)
 axs[0, 0].hist(yields[yields>0.2], bins=30)
-yields[yields<0.98]=0
+yields[yields<0.99]=0
 axs[0, 1].imshow(yields[:,:])
 axs[1, 0].imshow(image)
 axs[1, 1].imshow(mask)
@@ -69,7 +77,7 @@ plt.show()
 
 fig, axs = plt.subplots(1, 2)
 axs[0].imshow(np.swapaxes(yields[:,:],0,1))
-axs[1].imshow(image)
+axs[1].imshow(better_mask)
 plt.show()
 
 code.interact(local=dict(globals(), **locals()))
