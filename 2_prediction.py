@@ -60,6 +60,7 @@ for csv_path in sorted(glob.glob(file_path + "*.csv")):
         cell_array = np.flip(np.reshape(cell_array, (-1,2)),1)
         cells_in_image.append(cell_array)
         better_mask[cell_array[:,0],cell_array[:,1]]=1
+        del cell_array
 
 #### Prediction ####
     margin = np.round(bounding_box_size/2).astype(int)
@@ -85,8 +86,9 @@ for csv_path in sorted(glob.glob(file_path + "*.csv")):
     for i in range(1, len(indices[1])):
         if (indices[1][i] < minimum_cellsize) or (indices[1][i] > maximum_cellsize):
             base_array[base_array==i]=0
-    base_array[base_array>=1]=1
+    base_array[base_array>=.1]=1
     discard_array, num_cells = nd.label(base_array)
+    better_mask = np.swapaxes(better_mask,0,1)
     overlap = base_array*better_mask
     discard_array, true_positives = nd.label(overlap)
     false_positives = np.max(num_cells - true_positives,0)
@@ -98,9 +100,10 @@ for csv_path in sorted(glob.glob(file_path + "*.csv")):
     total_false_positives.append(false_positives)
     total_false_negatives.append(false_negatives)
     true_totals.append(len(cells_in_image))
+    code.interact(local=dict(globals(), **locals()))
 
 
-code.interact(local=dict(globals(), **locals()))
+
 
 print("Mean Jaccard")
 mean_jaccard_score = np.mean(jaccard)
@@ -119,12 +122,6 @@ print(total_false_negatives)
 
 
 
-
-
-
-
-
-
 fig, axs = plt.subplots(2, 2)
 axs[0, 0].hist(yields[yields>0.2], bins=30)
 yields[yields<0.99]=0
@@ -136,6 +133,6 @@ plt.show()
 
 yields[yields<0.99]=0
 fig, axs = plt.subplots(1, 2)
-axs[0].imshow(np.swapaxes(yields[:,:],0,1))
-axs[1].imshow(better_mask)
+axs[0].imshow(np.swapaxes(better_mask,0,1))
+axs[1].imshow(base_array)
 plt.show()
