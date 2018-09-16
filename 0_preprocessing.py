@@ -15,7 +15,7 @@ bounding_box_size = 64
 save_crops = True
 dataset = "A" # A or H
 include_negatives=True
-sample_ratio=1
+sample_ratio=2
 hold_back_test_data = True
 
 def crop_image(image, cell_center, bounding_box_size, cell_array):

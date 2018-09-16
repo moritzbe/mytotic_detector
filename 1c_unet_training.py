@@ -16,9 +16,9 @@ import keras.backend as K
 from sklearn.model_selection import train_test_split
 from keras.utils import to_categorical
 import keras.losses
-from keras.losses.dice_coef_loss = dice_coef_loss
 import numpy as np
 import _pickle as cPickle
+import matplotlib.pyplot as plt
 import code
 import os
 
@@ -34,26 +34,18 @@ from os import environ
 save_outcomes = False
 train = True
 modelsave = True
-data_augmentation = False
-batch_size = 1
-epochs = 4
+data_augmentation = True
+batch_size = 16
+epochs = 40
 random_state = 17
 n_classes = 2
 split = 0.9
 class_names = ["healthy", "mytotic"]
 channels = 3
 
-### Optimizer ###
-lr = 0.005
-momentum = 0.9
-decay = 0
-change_epoch = 20
-lr2 = 0.001
-decay2 = 0.0005
-
 modelpath = ""
 
-np.random.seed(seed=random_state)
+
 data_path = "/Users/Moritz/Desktop/zeiss/data/preprocessed/"
 file = "cropsize=32scanner=Ainclude_negatives=Trueratio=1hb=True"
 file_path = data_path + file
@@ -80,6 +72,14 @@ cells = np.swapaxes(cells, 1,3)
 X_train, X_test, y_train, y_test = train_test_split(cells, masks, test_size=(1-split), random_state=random_state, shuffle=True)
 
 
+mean = np.mean(X_train)# (0)[np.newaxis,:]  # mean for data centering
+std = np.std(X_train)  # std for data normalization
+X_train -= mean
+X_train /= std
+X_test -= mean
+X_test /= std
+
+
 
 
 if data_augmentation:
@@ -88,6 +88,10 @@ if data_augmentation:
     X_train_u = X_train[:,::-1,:,:]
     X_train_lu = X_train_u[:,:,::-1,:]
     X_train = np.vstack([X_train, X_train_l, X_train_u, X_train_lu])
+    y_train_l = y_train[:,::-1,:]
+    y_train_u = y_train[::-1,:,:]
+    y_train_lu = y_train_u[:,::-1,:]
+    y_train = np.vstack([y_train, y_train_l, y_train_u, y_train_lu])
 
 csv_logger_path = "/Users/Moritz/Desktop/zeiss/resources/checkpoints/unet_held_back_logger.csv"
 checkpoint_path = "/Users/Moritz/Desktop/zeiss/resources/checkpoints/unet_held_back_checkpoint.hdf5"
@@ -105,46 +109,51 @@ if train:
         checkpoint,
     ]
     model.fit(X_train, y_train, batch_size=batch_size, epochs=epochs, shuffle=True, verbose=2, validation_data=(X_test, y_test), callbacks=callbacks)
-    code.interact(local=dict(globals(), **locals()))
     del(model)
     keras.losses.dice_coef_loss = dice_coef_loss
+    keras.metrics.dice_coef = dice_coef
     model = load_model(checkpoint_path)
 
+
+if not train:
+    keras.losses.dice_coef_loss = dice_coef_loss
+    keras.metrics.dice_coef = dice_coef
+    print("Loading trained model", checkpoint_path)
+    model = load_model(checkpoint_path)
 
 
 code.interact(local=dict(globals(), **locals()))
 
-if not train:
-    print("Loading trained model", checkpoint_path)
-    model = load_model(checkpoint_path)
 
 #### EVALUATION EX1 + Ex2 ####
-predictions_train = model.predict(X_train.astype('float32'), batch_size=batch_size, verbose=2)
-predictions_test = model.predict(X_test.astype('float32'), batch_size=batch_size, verbose=2)
-log_loss_train = log_loss(y_train, predictions_train)
-print('Score log_loss train: ', log_loss_train)
-acc_train = model.evaluate(X_train.astype('float32'), y_train, verbose=0)
-print("Score accuracy train: %.2f%%" % (acc_train[1]*100))
+predictions_train = model.predict(X_train.astype('float32'), batch_size=batch_size, verbose=2)*std + mean
+predictions_test = model.predict(X_test.astype('float32'), batch_size=batch_size, verbose=2)*std + mean
 
-log_loss_test = log_loss(y_test, predictions_test)
-print('Score log_loss test: ', log_loss_test)
-acc_test = model.evaluate(X_test.astype('float32'), y_test, verbose=0)
-print("Score accuracy test: %.2f%%" % (acc_test[1]*100))
+thres = 0.65
+predictions_test[predictions_test>thres]=1
+predictions_test[predictions_test<=thres]=0
+
+fig, axs = plt.subplots(3, 3)
+axs[0, 0].imshow(X_test[3,0,:,:])
+axs[0, 1].imshow(predictions_test[3,0,:,:])
+axs[0, 2].imshow(y_test[3,:,:])
+axs[1, 0].imshow(X_test[6,0,:,:])
+axs[1, 1].imshow(predictions_test[6,0,:,:])
+axs[1, 2].imshow(y_test[6,:,:])
+axs[2, 0].imshow(X_test[13,0,:,:])
+axs[2, 1].imshow(predictions_test[13,0,:,:])
+axs[2, 2].imshow(y_test[13,:,:])
+plt.subplot_tool()
+plt.show()
 
 
 
-plotBothConfusionMatrices(np.argmax(predictions_val, axis=1), y_test, class_names)
 
 
-#### Saving Model ####
-# if train & modelsave:
-#     modelname = "/home/moritz_berthold/dl/cellmodels/deepflow/4_way_clean_resize" + str(resize) + "_ch_" + str(channels) + "_bs=" + str(batch_size) + \
-#             "_epochs=" + str(epochs) + "_norm=" + str(data_normalization) + "_aug=" + str(entation) + "_split=" + str(split) + "_lr1=" + str(lr)  + \
-#             "_momentum=" + str(momentum)  + "_decay1=" + str(decay) +  \
-#             "_change_epoch=" + str(change_epoch) + "_decay2=" + str(decay2) + \
-#             "_lr2=" + str(lr2)  + "_acc1=" + str(acc_train) + "_acc2=" + str(acc_test) + ".h5"
-#     model.save(modelname)
-#     print("saved model")
+
+
+plt.imshow(predictions_test[13,0,:,:])
+plt.show()
 
 
 tb = pd.read_table(csv_logger_path, delimiter=",")
