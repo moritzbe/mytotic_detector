@@ -31,7 +31,6 @@ from keras import backend as K
 from os import environ
 
 
-save_outcomes = False
 train = True
 modelsave = True
 data_augmentation = True
@@ -47,7 +46,7 @@ modelpath = ""
 
 
 data_path = "/Users/Moritz/Desktop/zeiss/data/preprocessed/"
-file = "cropsize=32scanner=Ainclude_negatives=Trueratio=1hb=True"
+file = "cropsize=64scanner=Ainclude_negatives=Trueratio=2hb=True"
 file_path = data_path + file
 cells = np.load(file_path+".npy").astype('float32')
 masks = np.load(file_path+"masks.npy").astype('float32')

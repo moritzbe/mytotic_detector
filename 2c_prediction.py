@@ -27,6 +27,7 @@ from scipy import misc
 
 import os
 
+plot = False
 dataset = "A"
 bounding_box_size = 32
 minimum_cellsize = 300
@@ -35,7 +36,7 @@ checkpoint_path = "/Users/Moritz/Desktop/zeiss/resources/checkpoints/unet_held_b
 
 print("Loading trained model", checkpoint_path)
 
-
+thres = 0.65
 std = 0.25597024
 mean = 0.5566084
 
@@ -74,24 +75,31 @@ for csv_path in sorted(glob.glob(file_path + "*.csv")):
     margin = np.round(bounding_box_size/2).astype(int)
     pad_image = np.pad(image[:,:,:3], ((margin,margin),(margin,margin),(0,0)), mode="constant", constant_values=0)
     pad_image = (np.swapaxes(pad_image, 0,2)- mean)/std
-    code.interact(local=dict(globals(), **locals()))
 
-    yields = np.zeros_like(pad_image[:,:,0])
+    yields = np.zeros_like(pad_image[0,:,:])
     for x in range(0, image.shape[0], margin):
         for y in range(0, image.shape[1], margin):
-            yields[x-margin:x+margin,y-margin:y+margin] = np.max(model.predict(np.expand_dims(pad_image[:,x:x+2*margin,y:y+2*margin].astype('float32'), axis=0), batch_size=1, verbose=3)[0][1],yields[x-margin:x+margin,y-margin:y+margin])
+            temp_yield = model.predict(np.expand_dims(pad_image[:,x:x+2*margin,y:y+2*margin].astype('float32'), axis=0), batch_size=1, verbose=3)[0][0]
+            temp_yield[temp_yield<thres]=0
+            temp_yield[temp_yield>=thres]=1
+            yields[x:x+2*margin,y:y+2*margin] = np.maximum(temp_yield, yields[x:x+2*margin,y:y+2*margin])
+    image = np.swapaxes(image * std + mean,0,1)
+    yields = yields[margin:-margin,margin:-margin]
+    if plot:
+        fig, axs = plt.subplots(1, 2)
+        axs[0].imshow(yields)
+        axs[1].imshow(image)
+        plt.subplot_tool()
+        plt.show()
 
 
 
-
-#### Morphological Operations ####
-    yields[yields<0.99]=0
-    yields[yields>=0.99]=1
-    kernel = np.ones((stepSize+2,stepSize+2),np.uint8)
-    dilation = cv2.dilate(yields,kernel,iterations = 1)
+    #### Morphological Operations ####
+    # kernel = np.ones((stepSize+2,stepSize+2),np.uint8)
+    # dilation = cv2.dilate(yields,kernel,iterations = 1)
     #opening = cv2.morphologyEx(yields, cv2.MORPH_OPEN, kernel)
     #closing = cv2.morphologyEx(img, cv2.MORPH_CLOSE, kernel)
-
+    dilation = yields
     #### Evaluation ####
     base_array, num_features = nd.label(dilation)
     indices = np.unique(base_array, return_counts=True)
@@ -115,8 +123,16 @@ for csv_path in sorted(glob.glob(file_path + "*.csv")):
     total_false_negatives.append(false_negatives)
     true_totals.append(len(cells_in_image))
 
+    if plot:
+        fig, axs = plt.subplots(2, 2)
+        axs[0, 0].imshow(image*255)
+        axs[1, 0].imshow(image)
+        axs[0, 1].imshow(yields)
+        axs[1, 1].imshow(better_mask)
+        plt.subplot_tool()
+        plt.show()
 
-
+code.interact(local=dict(globals(), **locals()))
 
 print("Mean Jaccard")
 mean_jaccard_score = np.mean(jaccard)
@@ -135,15 +151,6 @@ print(total_false_negatives)
 
 code.interact(local=dict(globals(), **locals()))
 
-
-fig, axs = plt.subplots(2, 2)
-axs[0, 0].hist(yields[yields>0.2], bins=30)
-yields[yields<0.99]=0
-axs[0, 1].imshow(yields[:,:])
-axs[1, 0].imshow(image)
-axs[1, 1].imshow(mask)
-plt.subplot_tool()
-plt.show()
 
 yields[yields<0.99]=0
 fig, axs = plt.subplots(1, 2)
