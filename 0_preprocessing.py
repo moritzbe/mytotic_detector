@@ -11,7 +11,7 @@ import math
 
 
 plot = False
-bounding_box_size = 32
+bounding_box_size = 64
 save_crops = True
 dataset = "A" # A or H
 include_negatives=True

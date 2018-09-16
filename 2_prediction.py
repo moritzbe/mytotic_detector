@@ -73,7 +73,7 @@ for csv_path in sorted(glob.glob(file_path + "*.csv")):
 #### Morphological Operations ####
     yields[yields<0.99]=0
     yields[yields>=0.99]=1
-    kernel = np.ones((4,4),np.uint8)
+    kernel = np.ones((stepSize+2,stepSize+2),np.uint8)
     dilation = cv2.dilate(yields,kernel,iterations = 1)
     #opening = cv2.morphologyEx(yields, cv2.MORPH_OPEN, kernel)
     #closing = cv2.morphologyEx(img, cv2.MORPH_CLOSE, kernel)
@@ -100,7 +100,6 @@ for csv_path in sorted(glob.glob(file_path + "*.csv")):
     total_false_positives.append(false_positives)
     total_false_negatives.append(false_negatives)
     true_totals.append(len(cells_in_image))
-    code.interact(local=dict(globals(), **locals()))
 
 
 
@@ -120,6 +119,7 @@ print("False Negatives ")
 print(total_false_negatives)
 
 
+code.interact(local=dict(globals(), **locals()))
 
 
 fig, axs = plt.subplots(2, 2)
