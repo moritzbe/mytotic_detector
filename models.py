@@ -91,7 +91,7 @@ def deepmytotic(channels, n_classes, lr, momentum, decay):
     return model
 
 
-def unet(nClasses , input_width, input_height, nChannels=3):
+def unet(nClasses , input_width, input_height, nChannels):
     inputs = Input((nChannels, input_height, input_width)) # 32
     conv1 = Convolution2D(8, 3, 3, activation='relu', border_mode='same')(inputs)
     conv1 = Dropout(0.2)(conv1)
@@ -121,8 +121,6 @@ def unet(nClasses , input_width, input_height, nChannels=3):
     model = Model(input=inputs, output=conv6)
     optimizer = RMSprop(lr=0.001, rho=0.9, epsilon=None, decay=0.0)
     model.compile(optimizer=Adam(lr=1e-5), loss=dice_coef_loss, metrics=[dice_coef])
-    # model.compile(optimizer=optim, loss=dice_coef_loss, metrics=[dice_coef])
-    # code.interact(local=dict(globals(), **locals()))
     return model
 
 

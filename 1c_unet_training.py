@@ -41,6 +41,7 @@ n_classes = 2
 split = 0.9
 class_names = ["healthy", "mytotic"]
 channels = 3
+double_channel = True
 
 modelpath = ""
 
@@ -133,14 +134,14 @@ predictions_test[predictions_test>thres]=1
 predictions_test[predictions_test<=thres]=0
 
 fig, axs = plt.subplots(3, 3)
-axs[0, 0].imshow(X_test[3,0,:,:])
-axs[0, 1].imshow(predictions_test[3,0,:,:])
+axs[0, 0].imshow(X_test[3,:3,:,:])
+axs[0, 1].imshow(predictions_test[3,:3,:,:])
 axs[0, 2].imshow(y_test[3,:,:])
-axs[1, 0].imshow(X_test[6,0,:,:])
-axs[1, 1].imshow(predictions_test[6,0,:,:])
+axs[1, 0].imshow(X_test[6,:3,:,:])
+axs[1, 1].imshow(predictions_test[6,:3,:,:])
 axs[1, 2].imshow(y_test[6,:,:])
-axs[2, 0].imshow(X_test[13,0,:,:])
-axs[2, 1].imshow(predictions_test[13,0,:,:])
+axs[2, 0].imshow(X_test[13,:3,:,:])
+axs[2, 1].imshow(predictions_test[13,:3,:,:])
 axs[2, 2].imshow(y_test[13,:,:])
 plt.subplot_tool()
 plt.show()
