@@ -29,16 +29,36 @@ import os
 
 plot = False
 dataset = "A"
-bounding_box_size = 32
+dataset2 = "H"
+bounding_box_size = 64
 minimum_cellsize = 300
 maximum_cellsize = 2800
-checkpoint_path = "/Users/Moritz/Desktop/zeiss/resources/checkpoints/unet_held_back_checkpoint.hdf5"
+double_channel=True
+dimensions = 3
+if double_channel:
+    dimensions = 6
+#checkpoint_path = "/Users/Moritz/Desktop/zeiss/resources/checkpoints/unet_held_back_checkpoint.hdf5"
+checkpoint_path = "/Users/Moritz/Desktop/zeiss/resources/checkpoints/unet_held_back_checkpoint_double.hdf5"
+
 
 print("Loading trained model", checkpoint_path)
 
 thres = 0.65
 std = 0.25597024
 mean = 0.5566084
+
+
+smooth=1
+
+def dice_coef(y_true, y_pred):
+    y_true_f = K.flatten(y_true)
+    y_pred_f = K.flatten(y_pred)
+    intersection = K.sum(y_true_f * y_pred_f)
+    return (2. * intersection + smooth) / (K.sum(y_true_f*y_true_f) + K.sum(y_pred_f*y_pred_f) + smooth)
+
+
+def dice_coef_loss(y_true, y_pred):
+    return 1.-dice_coef(y_true, y_pred)
 
 import keras
 keras.losses.dice_coef_loss = dice_coef_loss
@@ -52,7 +72,7 @@ data_path = "/Users/Moritz/Desktop/zeiss/data/"
 
 # only loading the last file
 file_path = sorted(glob.glob(data_path + dataset + "0*_v2/"))[-1]
-jaccard = []
+dice_coef_loss_list = []
 total_true_positives = []
 total_false_positives = []
 total_false_negatives = []
@@ -61,6 +81,10 @@ for csv_path in sorted(glob.glob(file_path + "*.csv")):
     print(csv_path)
     all_annotation_txt = np.genfromtxt(csv_path, dtype = 'str', comments='#', delimiter="',\n'", skip_header=0, skip_footer=0, converters=None, missing_values=None, filling_values=None, usecols=None, names=None, excludelist=None, deletechars=None, replace_space='_', autostrip=False, case_sensitive=True, defaultfmt='f%i', unpack=None, usemask=False, loose=True, invalid_raise=True, max_rows=None, encoding='bytes')
     image = misc.imread(csv_path.replace(".csv", ".png"))/255
+    if double_channel:
+        image2 = misc.imread(csv_path.replace(".csv", ".png").replace(dataset, dataset2))/255
+        image2 = cv2.resize(image2, (image.shape[0], image.shape[1]), interpolation = cv2.INTER_LINEAR)
+        image = np.concatenate((image, image2), axis=-1)
     mask = misc.imread(csv_path.replace(".csv", ".jpg"))/255
     cells_in_image = []
     better_mask = np.zeros_like(image[:,:,0])
@@ -73,7 +97,7 @@ for csv_path in sorted(glob.glob(file_path + "*.csv")):
 
 #### Prediction ####
     margin = np.round(bounding_box_size/2).astype(int)
-    pad_image = np.pad(image[:,:,:3], ((margin,margin),(margin,margin),(0,0)), mode="constant", constant_values=0)
+    pad_image = np.pad(image[:,:,:dimensions], ((margin,margin),(margin,margin),(0,0)), mode="constant", constant_values=0)
     pad_image = (np.swapaxes(pad_image, 0,2)- mean)/std
 
     yields = np.zeros_like(pad_image[0,:,:])
@@ -86,9 +110,10 @@ for csv_path in sorted(glob.glob(file_path + "*.csv")):
     image = np.swapaxes(image * std + mean,0,1)
     yields = yields[margin:-margin,margin:-margin]
     if plot:
+        code.interact(local=dict(globals(), **locals()))
         fig, axs = plt.subplots(1, 2)
         axs[0].imshow(yields)
-        axs[1].imshow(image)
+        axs[1].imshow(image[:,:,:3])
         plt.subplot_tool()
         plt.show()
 
@@ -116,31 +141,31 @@ for csv_path in sorted(glob.glob(file_path + "*.csv")):
     false_positives = np.max(num_cells - true_positives,0)
     false_negatives = np.max(len(cells_in_image)-true_positives,0)
     #return average per image
-    score_per_image = jaccard_similarity_score(better_mask.flatten(), yields.flatten())
-    jaccard.append(score_per_image)
+    score_per_image = dice_coef_loss(better_mask, yields)
+    dice_coef_loss_list.append(score_per_image)
     total_true_positives.append(true_positives)
     total_false_positives.append(false_positives)
     total_false_negatives.append(false_negatives)
     true_totals.append(len(cells_in_image))
 
     if plot:
+        code.interact(local=dict(globals(), **locals()))
         fig, axs = plt.subplots(2, 2)
-        axs[0, 0].imshow(image*255)
-        axs[1, 0].imshow(image)
-        axs[0, 1].imshow(yields)
+        axs[0, 0].imshow(image[:,:,:3]*255)
+        axs[1, 0].imshow(image[:,:,:3])
+        axs[0, 1].imshow(base_array)
         axs[1, 1].imshow(better_mask)
         plt.subplot_tool()
         plt.show()
 
 code.interact(local=dict(globals(), **locals()))
 
-print("Mean Jaccard")
-mean_jaccard_score = np.mean(jaccard)
-print(mean_jaccard_score)
+print("Mean Dice Loss")
+mean_dice_loss = np.mean(dice_coef_loss_list)
+print(mean_dice_loss)
 
 print("True Positives")
 print(total_true_positives)
-print(np.mean(total_true_positives))
 
 print("False Positives")
 print(total_false_positives)
@@ -148,12 +173,13 @@ print(total_false_positives)
 print("False Negatives ")
 print(total_false_negatives)
 
+print("True Totals ")
+print(true_totals)
 
-code.interact(local=dict(globals(), **locals()))
 
 
 yields[yields<0.99]=0
 fig, axs = plt.subplots(1, 2)
-axs[0].imshow(np.swapaxes(better_mask,0,1))
+axs[0].imshow(better_mask)
 axs[1].imshow(base_array)
 plt.show()

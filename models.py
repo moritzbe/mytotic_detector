@@ -36,14 +36,6 @@ from os import environ
 import keras.backend as K
 K.set_image_dim_ordering('th')
 
-# Nick and Phils Training Details:
-# The network was trained for 100 epochs using stochastic gradient descent
-# with standard 318 parameters: 0.9 momentum, a fixed learning rate of 0.01
-# up to epoch 85 and of 0.001 319 afterwards as well as a slightly regularizing
-# weight decay of 0.0005.
-
-# Basic Conv + BN + ReLU factory
-# padding same - > same output size, padding is added according to kernel
 smooth=1
 
 def dice_coef(y_true, y_pred):
@@ -123,6 +115,80 @@ def unet(nClasses , input_width, input_height, nChannels):
     model.compile(optimizer=Adam(lr=1e-5), loss=dice_coef_loss, metrics=[dice_coef])
     return model
 
+def unet_large(nClasses , input_width, input_height, nChannels):
+    inputs = Input((nChannels, input_height, input_width)) # 32
+    conv1 = Convolution2D(16, 3, 3, activation='relu', border_mode='same')(inputs)
+    conv1 = Dropout(0.2)(conv1)
+    conv1 = Convolution2D(16, 3, 3, activation='relu', border_mode='same')(conv1)
+    pool1 = MaxPooling2D(pool_size=(2, 2))(conv1)
+
+    conv2 = Convolution2D(32, 3, 3, activation='relu', border_mode='same')(pool1) #64
+    conv2 = Dropout(0.2)(conv2)
+    conv2 = Convolution2D(32, 3, 3, activation='relu', border_mode='same')(conv2)
+    pool2 = MaxPooling2D(pool_size=(2, 2))(conv2)
+
+    conv3 = Convolution2D(64, 3, 3, activation='relu', border_mode='same')(pool2) #128
+    conv3 = Dropout(0.2)(conv3)
+    conv3 = Convolution2D(64, 3, 3, activation='relu', border_mode='same')(conv3)
+
+    up1 = concatenate([UpSampling2D(size=(2, 2))(conv3), conv2], axis=1)
+    conv4 = Convolution2D(32, 3, 3, activation='relu', border_mode='same')(up1)
+    conv4 = Dropout(0.2)(conv4)
+    conv4 = Convolution2D(32, 3, 3, activation='relu', border_mode='same')(conv4)
+
+    up2 = concatenate([UpSampling2D(size=(2, 2))(conv4), conv1], axis=1)
+    conv5 = Convolution2D(16, 3, 3, activation='relu', border_mode='same')(up2)
+    conv5 = Dropout(0.2)(conv5)
+    conv5 = Convolution2D(16, 3, 3, activation='relu', border_mode='same')(conv5)
+
+    conv6 = Convolution2D(1, 1, 1, activation='sigmoid',border_mode='same')(conv5)
+    model = Model(input=inputs, output=conv6)
+    optimizer = RMSprop(lr=0.001, rho=0.9, epsilon=None, decay=0.0)
+    model.compile(optimizer=Adam(lr=1e-5), loss=dice_coef_loss, metrics=[dice_coef])
+    return model
+
+
+def unet_very_large(nClasses , input_width, input_height, nChannels):
+    inputs = Input((nChannels, input_height, input_width)) # 32
+    conv1 = Convolution2D(16, 3, 3, activation='relu', border_mode='same')(inputs)
+    conv1 = Dropout(0.2)(conv1)
+    conv1 = Convolution2D(16, 3, 3, activation='relu', border_mode='same')(conv1)
+    pool1 = MaxPooling2D(pool_size=(2, 2))(conv1)
+
+    conv2 = Convolution2D(32, 3, 3, activation='relu', border_mode='same')(pool1) #64
+    conv2 = Dropout(0.2)(conv2)
+    conv2 = Convolution2D(32, 3, 3, activation='relu', border_mode='same')(conv2)
+    pool2 = MaxPooling2D(pool_size=(2, 2))(conv2)
+
+    conv3 = Convolution2D(64, 3, 3, activation='relu', border_mode='same')(pool2) #128
+    conv3 = Dropout(0.2)(conv3)
+    conv3 = Convolution2D(64, 3, 3, activation='relu', border_mode='same')(conv3)
+    pool3 = MaxPooling2D(pool_size=(2, 2))(conv3)
+
+    conv4 = Convolution2D(128, 3, 3, activation='relu', border_mode='same')(pool3) #128
+    conv4 = Dropout(0.2)(conv4)
+    conv4 = Convolution2D(128, 3, 3, activation='relu', border_mode='same')(conv4)
+
+    up1 = concatenate([UpSampling2D(size=(2, 2))(conv4), conv3], axis=1)
+    conv5 = Convolution2D(64, 3, 3, activation='relu', border_mode='same')(up1)
+    conv5 = Dropout(0.2)(conv5)
+    conv5 = Convolution2D(64, 3, 3, activation='relu', border_mode='same')(conv5)
+
+    up2 = concatenate([UpSampling2D(size=(2, 2))(conv5), conv2], axis=1)
+    conv6 = Convolution2D(32, 3, 3, activation='relu', border_mode='same')(up2)
+    conv6 = Dropout(0.2)(conv6)
+    conv6 = Convolution2D(32, 3, 3, activation='relu', border_mode='same')(conv6)
+
+    up3 = concatenate([UpSampling2D(size=(2, 2))(conv6), conv1], axis=1)
+    conv7 = Convolution2D(16, 3, 3, activation='relu', border_mode='same')(up3)
+    conv7 = Dropout(0.2)(conv7)
+    conv7 = Convolution2D(16, 3, 3, activation='relu', border_mode='same')(conv6)
+
+    conv8 = Convolution2D(1, 1, 1, activation='sigmoid',border_mode='same')(conv7)
+    model = Model(input=inputs, output=conv8)
+    optimizer = RMSprop(lr=0.001, rho=0.9, epsilon=None, decay=0.0)
+    model.compile(optimizer=Adam(lr=1e-5), loss=dice_coef_loss, metrics=[dice_coef])
+    return model
 
 def showModel(model, name): #only works locally showModel(model, name = "pool9")
 	plot_model(model, show_shapes=True, to_file="model_visualisation/" + name + ".png")

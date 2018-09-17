@@ -35,19 +35,18 @@ train = True
 modelsave = True
 data_augmentation = True
 batch_size = 16
-epochs = 40
+epochs = 60
 random_state = 17
 n_classes = 2
 split = 0.9
 class_names = ["healthy", "mytotic"]
-channels = 3
 double_channel = True
 
 modelpath = ""
 
 
 data_path = "/Users/Moritz/Desktop/zeiss/data/preprocessed/"
-file = "cropsize=64scanner=Ainclude_negatives=Trueratio=2hb=True"
+file = "cropsize=64scanner=Ainclude_negatives=Trueratio=2hb=Truedouble_channel_mean=True"
 file_path = data_path + file
 cells = np.load(file_path+".npy").astype('float32')
 masks = np.load(file_path+"masks.npy").astype('float32')
@@ -56,7 +55,8 @@ for i in range(0,cells.shape[0]):
     if np.max(masks[i,:,:])==1:
         y[i]=1
 
-
+print("Cell Dimensions")
+print(cells.shape)
 def schedule(epoch):
     if epoch == change_epoch:
         K.set_value(model.optimizer.lr, lr2)
@@ -93,13 +93,13 @@ if data_augmentation:
     y_train_lu = y_train_u[:,::-1,:]
     y_train = np.vstack([y_train, y_train_l, y_train_u, y_train_lu])
 
-csv_logger_path = "/Users/Moritz/Desktop/zeiss/resources/checkpoints/unet_held_back_logger.csv"
-checkpoint_path = "/Users/Moritz/Desktop/zeiss/resources/checkpoints/unet_held_back_checkpoint.hdf5"
+csv_logger_path = "/Users/Moritz/Desktop/zeiss/resources/checkpoints/unet_held_back_logger_double_mean.csv"
+checkpoint_path = "/Users/Moritz/Desktop/zeiss/resources/checkpoints/unet_held_back_checkpoint_double_mean.hdf5"
 
 
 #### TRAINING ####
 if train:
-    model = unet(nClasses=1, input_width=cells.shape[-1], input_height=cells.shape[-2], nChannels=cells.shape[-3])
+    model = unet_large(nClasses=1, input_width=cells.shape[-1], input_height=cells.shape[-2], nChannels=cells.shape[-3])
     #change_lr = LearningRateScheduler(schedule)
     csvlog = CSVLogger(csv_logger_path, append=True)
     checkpoint = ModelCheckpoint(checkpoint_path, monitor='val_loss', verbose=1, save_best_only=True, mode='auto')
@@ -134,14 +134,14 @@ predictions_test[predictions_test>thres]=1
 predictions_test[predictions_test<=thres]=0
 
 fig, axs = plt.subplots(3, 3)
-axs[0, 0].imshow(X_test[3,:3,:,:])
-axs[0, 1].imshow(predictions_test[3,:3,:,:])
+axs[0, 0].imshow(X_test[3,0,:,:])
+axs[0, 1].imshow(predictions_test[3,0,:,:])
 axs[0, 2].imshow(y_test[3,:,:])
-axs[1, 0].imshow(X_test[6,:3,:,:])
-axs[1, 1].imshow(predictions_test[6,:3,:,:])
+axs[1, 0].imshow(X_test[6,0,:,:])
+axs[1, 1].imshow(predictions_test[6,0,:,:])
 axs[1, 2].imshow(y_test[6,:,:])
-axs[2, 0].imshow(X_test[13,:3,:,:])
-axs[2, 1].imshow(predictions_test[13,:3,:,:])
+axs[2, 0].imshow(X_test[13,0,:,:])
+axs[2, 1].imshow(predictions_test[13,0,:,:])
 axs[2, 2].imshow(y_test[13,:,:])
 plt.subplot_tool()
 plt.show()
@@ -158,16 +158,16 @@ plt.show()
 
 tb = pd.read_table(csv_logger_path, delimiter=",")
 
-acc = tb["acc"]
-val_acc = tb["val_acc"]
+acc = tb["loss"]
+val_acc = tb["val_loss"]
 
 plt.plot(acc,c='r',alpha=0.5, linewidth=3)
 plt.plot(val_acc,c='blue',alpha=0.5, linewidth=3)
 plt.xlim([0, acc.size])
 plt.ylim([0, 1])
 # plt.ylim([0, np.max([np.max(loss), np.max(val_loss)])])
-plt.title("Learning curves, train and val accuracies")
-plt.ylabel('Accuracy')
+plt.title("Learning curves, train and val loss")
+plt.ylabel('Loss')
 plt.xlabel('Training epochs')
 plt.show()
 code.interact(local=dict(globals(), **locals()))
