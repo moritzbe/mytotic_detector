@@ -19,6 +19,7 @@ import keras.losses
 import numpy as np
 import _pickle as cPickle
 import matplotlib.pyplot as plt
+import pandas as pd
 import code
 import os
 
@@ -30,30 +31,32 @@ K.set_image_dim_ordering('th')
 from keras import backend as K
 from os import environ
 
-
+fair = True
 train = True
 modelsave = True
 data_augmentation = True
-batch_size = 16
+batch_size = 32
 epochs = 60
+change_epoch = 40
 random_state = 17
 n_classes = 2
 split = 0.9
 class_names = ["healthy", "mytotic"]
 double_channel = True
+thresholding_probabilities = True
+
+lr2 = 5e-6
+decay2 = 0.0005
 
 modelpath = ""
 
 
 data_path = "/Users/Moritz/Desktop/zeiss/data/preprocessed/"
-file = "cropsize=64scanner=Ainclude_negatives=Trueratio=2hb=Truedouble_channel_mean=True"
+file = "fair_cropsize=128scanner=Ainclude_negatives=Truehb=Truedouble_channel=False"
 file_path = data_path + file
 cells = np.load(file_path+".npy").astype('float32')
 masks = np.load(file_path+"masks.npy").astype('float32')
-y=np.zeros([cells.shape[0]]).astype(int)
-for i in range(0,cells.shape[0]):
-    if np.max(masks[i,:,:])==1:
-        y[i]=1
+
 
 print("Cell Dimensions")
 print(cells.shape)
@@ -67,7 +70,8 @@ def schedule(epoch):
 
 # reshape for network
 cells = np.swapaxes(cells, 1,3)
-# masks = np.swapaxes(masks, 1,3)
+if fair:
+    masks=np.swapaxes(masks,1,2)
 
 X_train, X_test, y_train, y_test = train_test_split(cells, masks, test_size=(1-split), random_state=random_state, shuffle=True)
 
@@ -93,14 +97,14 @@ if data_augmentation:
     y_train_lu = y_train_u[:,::-1,:]
     y_train = np.vstack([y_train, y_train_l, y_train_u, y_train_lu])
 
-csv_logger_path = "/Users/Moritz/Desktop/zeiss/resources/checkpoints/unet_held_back_logger_double_mean.csv"
-checkpoint_path = "/Users/Moritz/Desktop/zeiss/resources/checkpoints/unet_held_back_checkpoint_double_mean.hdf5"
+csv_logger_path = "/Users/Moritz/Desktop/zeiss/resources/checkpoints/fair_unet_held_back_logger_single_128.csv"
+checkpoint_path = "/Users/Moritz/Desktop/zeiss/resources/checkpoints/fair_unet_held_back_checkpoint_single_128.hdf5"
 
 
 #### TRAINING ####
 if train:
     model = unet_large(nClasses=1, input_width=cells.shape[-1], input_height=cells.shape[-2], nChannels=cells.shape[-3])
-    #change_lr = LearningRateScheduler(schedule)
+    change_lr = LearningRateScheduler(schedule)
     csvlog = CSVLogger(csv_logger_path, append=True)
     checkpoint = ModelCheckpoint(checkpoint_path, monitor='val_loss', verbose=1, save_best_only=True, mode='auto')
     callbacks = [
@@ -129,20 +133,21 @@ code.interact(local=dict(globals(), **locals()))
 predictions_train = model.predict(X_train.astype('float32'), batch_size=batch_size, verbose=2)*std + mean
 predictions_test = model.predict(X_test.astype('float32'), batch_size=batch_size, verbose=2)*std + mean
 
-thres = 0.65
-predictions_test[predictions_test>thres]=1
-predictions_test[predictions_test<=thres]=0
+if thresholding_probabilities:
+    thres = 0.65
+    predictions_test[predictions_test>thres]=1
+    predictions_test[predictions_test<=thres]=0
 
 fig, axs = plt.subplots(3, 3)
-axs[0, 0].imshow(X_test[3,0,:,:])
-axs[0, 1].imshow(predictions_test[3,0,:,:])
-axs[0, 2].imshow(y_test[3,:,:])
-axs[1, 0].imshow(X_test[6,0,:,:])
-axs[1, 1].imshow(predictions_test[6,0,:,:])
-axs[1, 2].imshow(y_test[6,:,:])
-axs[2, 0].imshow(X_test[13,0,:,:])
-axs[2, 1].imshow(predictions_test[13,0,:,:])
-axs[2, 2].imshow(y_test[13,:,:])
+axs[0, 0].imshow(X_test[4,0,:,:])
+axs[0, 1].imshow(predictions_test[4,0,:,:])
+axs[0, 2].imshow(y_test[4,:,:])
+axs[1, 0].imshow(X_test[7,0,:,:])
+axs[1, 1].imshow(predictions_test[7,0,:,:])
+axs[1, 2].imshow(y_test[7,:,:])
+axs[2, 0].imshow(X_test[14,0,:,:])
+axs[2, 1].imshow(predictions_test[14,0,:,:])
+axs[2, 2].imshow(y_test[14,:,:])
 plt.subplot_tool()
 plt.show()
 

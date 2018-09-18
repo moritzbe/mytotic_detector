@@ -27,19 +27,25 @@ from scipy import misc
 
 import os
 
-plot = False
+plot = True
 dataset = "A"
 dataset2 = "H"
 bounding_box_size = 64
 minimum_cellsize = 300
 maximum_cellsize = 2800
-double_channel=True
+double_channel=False
 dimensions = 3
+thresholding_probabilities = True
+fair = True
 if double_channel:
     dimensions = 6
-#checkpoint_path = "/Users/Moritz/Desktop/zeiss/resources/checkpoints/unet_held_back_checkpoint.hdf5"
-checkpoint_path = "/Users/Moritz/Desktop/zeiss/resources/checkpoints/unet_held_back_checkpoint_double.hdf5"
 
+
+
+#checkpoint_path = "/Users/Moritz/Desktop/zeiss/resources/checkpoints/unet_held_back_checkpoint.hdf5"
+# checkpoint_path = "/Users/Moritz/Desktop/zeiss/resources/checkpoints/unet_held_back_checkpoint_double.hdf5"
+# checkpoint_path = "/Users/Moritz/Desktop/zeiss/resources/checkpoints/unet_held_back_checkpoint_double_decay.hdf5"
+checkpoint_path = "/Users/Moritz/Desktop/zeiss/resources/checkpoints/fair_unet_held_back_checkpoint_single_64.hdf5"
 
 print("Loading trained model", checkpoint_path)
 
@@ -104,18 +110,24 @@ for csv_path in sorted(glob.glob(file_path + "*.csv")):
     for x in range(0, image.shape[0], margin):
         for y in range(0, image.shape[1], margin):
             temp_yield = model.predict(np.expand_dims(pad_image[:,x:x+2*margin,y:y+2*margin].astype('float32'), axis=0), batch_size=1, verbose=3)[0][0]
-            temp_yield[temp_yield<thres]=0
-            temp_yield[temp_yield>=thres]=1
-            yields[x:x+2*margin,y:y+2*margin] = np.maximum(temp_yield, yields[x:x+2*margin,y:y+2*margin])
-    image = np.swapaxes(image * std + mean,0,1)
+            # if thresholding_probabilities:
+            #     temp_yield[temp_yield<thres]=0
+            #     temp_yield[temp_yield>=thres]=1
+            yields[x:x+2*margin,y:y+2*margin] = np.mean((temp_yield, yields[x:x+2*margin,y:y+2*margin]), axis=0)
+
+    thres=.8
+    if thresholding_probabilities:
+        yields[yields<thres]=0
+        yields[yields>=thres]=1
+    #
+    # if plot:
+    #     fig, axs = plt.subplots(1, 2)
+    #     axs[0].imshow(yields)
+    #     axs[1].imshow(image[:,:,:3])
+    #     plt.show()
+    image = image * std + mean
     yields = yields[margin:-margin,margin:-margin]
-    if plot:
-        code.interact(local=dict(globals(), **locals()))
-        fig, axs = plt.subplots(1, 2)
-        axs[0].imshow(yields)
-        axs[1].imshow(image[:,:,:3])
-        plt.subplot_tool()
-        plt.show()
+
 
 
 
@@ -124,16 +136,21 @@ for csv_path in sorted(glob.glob(file_path + "*.csv")):
     # dilation = cv2.dilate(yields,kernel,iterations = 1)
     #opening = cv2.morphologyEx(yields, cv2.MORPH_OPEN, kernel)
     #closing = cv2.morphologyEx(img, cv2.MORPH_CLOSE, kernel)
+
     dilation = yields
     #### Evaluation ####
     base_array, num_features = nd.label(dilation)
     indices = np.unique(base_array, return_counts=True)
     vals = []
     cell_coords = []
+    discarded = 0
     for i in range(1, len(indices[1])):
         if (indices[1][i] < minimum_cellsize) or (indices[1][i] > maximum_cellsize):
             base_array[base_array==i]=0
-    base_array[base_array>=.1]=1
+            discarded +=1
+    print("Discarded Cells per image")
+    print(discarded)
+    base_array[base_array>=1]=1
     discard_array, num_cells = nd.label(base_array)
     better_mask = np.swapaxes(better_mask,0,1)
     overlap = base_array*better_mask
@@ -149,14 +166,13 @@ for csv_path in sorted(glob.glob(file_path + "*.csv")):
     true_totals.append(len(cells_in_image))
 
     if plot:
-        code.interact(local=dict(globals(), **locals()))
         fig, axs = plt.subplots(2, 2)
-        axs[0, 0].imshow(image[:,:,:3]*255)
+        axs[0, 0].imshow(image[:,:,:3])
         axs[1, 0].imshow(image[:,:,:3])
         axs[0, 1].imshow(base_array)
         axs[1, 1].imshow(better_mask)
-        plt.subplot_tool()
         plt.show()
+    code.interact(local=dict(globals(), **locals()))
 
 code.interact(local=dict(globals(), **locals()))
 

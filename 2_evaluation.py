@@ -32,6 +32,7 @@ bounding_box_size = 32
 stepSize=4
 minimum_cellsize = 300
 maximum_cellsize = 2800
+thresholding_probabilities = True
 
 
 checkpoint_path = "/Users/Moritz/Desktop/zeiss/resources/checkpoints/checkpoint.hdf5"
