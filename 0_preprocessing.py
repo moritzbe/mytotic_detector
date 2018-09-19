@@ -11,16 +11,17 @@ import math
 import cv2
 
 plot = False
-bounding_box_size = 64
-save_crops = True
+bounding_box_size = 32
+save_crops = False
 dataset = "A" # A or H
 dataset2 = "H"
 include_negatives=True
 sample_ratio=2
-hold_back_test_data = True
+hold_back_test_data = False
 double_channel=True
 
 dimensions = 3
+cells_per_image = []
 if double_channel:
     dimensions = 4
 def crop_image(image, cell_center, bounding_box_size, cell_array):
@@ -82,8 +83,13 @@ for file_path in filelist:
                 plt.show()
             del(mask, crop)
         a_channel_annotations.append(cells_in_image)
+        cells_per_image.append(len(cells_in_image))
 
 
+print("average no of cells in image:")
+print(np.mean(cells_per_image))
+a = plotHistogram(cells_per_image,"Cells per image","Frequency","Mytotic count per image")
+code.interact(local=dict(globals(), **locals()))
 
 if include_negatives:
     negs = np.empty([0, bounding_box_size, bounding_box_size, dimensions])

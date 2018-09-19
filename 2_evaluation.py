@@ -35,6 +35,16 @@ maximum_cellsize = 2800
 thresholding_probabilities = True
 plot=False
 
+def dice_coef_here(y_true, y_pred):
+    y_true_f = np.concatenate(y_true)
+    y_pred_f = np.concatenate(y_pred)
+    intersection = np.sum(y_true_f * y_pred_f)
+    return (2. * intersection + smooth) / (np.sum(y_true_f*y_true_f) + np.sum(y_pred_f*y_pred_f) + smooth)
+
+
+def dice_coef_loss_here(y_true, y_pred):
+    return 1.-dice_coef_here(y_true, y_pred)
+
 
 checkpoint_path = "/Users/Moritz/Desktop/zeiss/resources/checkpoints/checkpoint.hdf5"
 print("Loading trained model", checkpoint_path)
@@ -50,6 +60,8 @@ total_true_positives = []
 total_false_positives = []
 total_false_negatives = []
 true_totals = []
+dice_coef_loss_list = []
+
 for csv_path in sorted(glob.glob(file_path + "*.csv")):
     print(csv_path)
     all_annotation_txt = np.genfromtxt(csv_path, dtype = 'str', comments='#', delimiter="',\n'", skip_header=0, skip_footer=0, converters=None, missing_values=None, filling_values=None, usecols=None, names=None, excludelist=None, deletechars=None, replace_space='_', autostrip=False, case_sensitive=True, defaultfmt='f%i', unpack=None, usemask=False, loose=True, invalid_raise=True, max_rows=None, encoding='bytes')
@@ -67,9 +79,10 @@ for csv_path in sorted(glob.glob(file_path + "*.csv")):
         fig, axs = plt.subplots(2, 2)
         axs[0, 0].imshow(image)
         axs[0, 1].imshow(better_mask)
-        axs[1, 0].imshow(image[580:640,1070:1125])
-        axs[1, 1].imshow(better_mask[580:640,1070:1125])
+        axs[1, 0].imshow(image)
+        axs[1, 1].imshow(better_mask[550:640,])
         plt.show()
+        code.interact(local=dict(globals(), **locals()))
 
 
 #### Prediction ####
@@ -80,17 +93,17 @@ for csv_path in sorted(glob.glob(file_path + "*.csv")):
     for x in range(0, image.shape[0], stepSize):
         for y in range(0, image.shape[1], stepSize):
             yields[x,y] = model.predict(np.expand_dims(pad_image[:,x:x+2*margin,y:y+2*margin].astype('float32'), axis=0), batch_size=1, verbose=3)[0][1]
+    score_per_image = dice_coef_loss_here(better_mask, yields)
+    dice_coef_loss_list.append(score_per_image)
 #### Morphological Operations ####
+    yields[yields<0.99]=0
+    yields[yields>=0.99]=1
+    kernel = np.ones((stepSize+2,stepSize+2),np.uint8)
+    dilation = cv2.dilate(yields,kernel,iterations = 1)
+    #opening = cv2.morphologyEx(yields, cv2.MORPH_OPEN, kernel)
+    #closing = cv2.morphologyEx(img, cv2.MORPH_CLOSE, kernel)
 
-    code.interact(local=dict(globals(), **locals()))
-yields[yields<0.99]=0
-yields[yields>=0.99]=1
-kernel = np.ones((stepSize+2,stepSize+2),np.uint8)
-dilation = cv2.dilate(yields,kernel,iterations = 1)
-#opening = cv2.morphologyEx(yields, cv2.MORPH_OPEN, kernel)
-#closing = cv2.morphologyEx(img, cv2.MORPH_CLOSE, kernel)
-
-#### Evaluation ####
+    #### Evaluation ####
     base_array, num_features = nd.label(dilation)
     indices = np.unique(base_array, return_counts=True)
     vals = []
@@ -115,10 +128,11 @@ dilation = cv2.dilate(yields,kernel,iterations = 1)
 
 
 
+code.interact(local=dict(globals(), **locals()))
 
-print("Mean Jaccard")
-mean_jaccard_score = np.mean(jaccard)
-print(mean_jaccard_score)
+print("Mean Dice Loss")
+mean_dice_loss = np.mean(dice_coef_loss_list)
+print(mean_dice_loss)
 
 print("True Positives")
 print(total_true_positives)
@@ -130,7 +144,13 @@ print(total_false_positives)
 print("False Negatives ")
 print(total_false_negatives)
 
-
+tp = np.sum(total_true_positives)
+fn = np.sum(total_false_negatives)
+fp = np.sum(total_false_positives)
+total = np.sum(true_totals)
+precision = tp/(tp+fp)
+recall = tp/(tp+fn)
+f1 = 2*(precision*recall)/(precision+recall)
 code.interact(local=dict(globals(), **locals()))
 
 

@@ -30,10 +30,10 @@ import os
 plot = False
 dataset = "A"
 dataset2 = "H"
-bounding_box_size = 128
+bounding_box_size = 64
 minimum_cellsize = 300
 maximum_cellsize = 2800
-double_channel=False
+double_channel=True
 dimensions = 3
 thresholding_probabilities = True
 fair = True
@@ -46,8 +46,8 @@ if double_channel:
 # checkpoint_path = "/Users/Moritz/Desktop/zeiss/resources/checkpoints/unet_held_back_checkpoint_double.hdf5"
 # checkpoint_path = "/Users/Moritz/Desktop/zeiss/resources/checkpoints/unet_held_back_checkpoint_double_decay.hdf5"
 # checkpoint_path = "/Users/Moritz/Desktop/zeiss/resources/checkpoints/fair_unet_held_back_checkpoint_single_64.hdf5"
-checkpoint_path = "/Users/Moritz/Desktop/zeiss/resources/checkpoints/fair_unet_held_back_checkpoint_single_128.hdf5"
-
+# checkpoint_path = "/Users/Moritz/Desktop/zeiss/resources/checkpoints/fair_unet_held_back_checkpoint_single_128.hdf5"
+checkpoint_path = "/Users/Moritz/Desktop/zeiss/resources/checkpoints/fair_unet_held_back_checkpoint_double_64.hdf5"
 print("Loading trained model", checkpoint_path)
 
 thres = 0.65
@@ -57,15 +57,15 @@ mean = 0.5566084
 
 smooth=1
 
-def dice_coef(y_true, y_pred):
-    y_true_f = K.flatten(y_true)
-    y_pred_f = K.flatten(y_pred)
-    intersection = K.sum(y_true_f * y_pred_f)
-    return (2. * intersection + smooth) / (K.sum(y_true_f*y_true_f) + K.sum(y_pred_f*y_pred_f) + smooth)
+def dice_coef_here(y_true, y_pred):
+    y_true_f = np.concatenate(y_true)
+    y_pred_f = np.concatenate(y_pred)
+    intersection = np.sum(y_true_f * y_pred_f)
+    return (2. * intersection + smooth) / (np.sum(y_true_f*y_true_f) + np.sum(y_pred_f*y_pred_f) + smooth)
 
 
-def dice_coef_loss(y_true, y_pred):
-    return 1.-dice_coef(y_true, y_pred)
+def dice_coef_loss_here(y_true, y_pred):
+    return 1.-dice_coef_here(y_true, y_pred)
 
 import keras
 keras.losses.dice_coef_loss = dice_coef_loss
@@ -159,7 +159,7 @@ for csv_path in sorted(glob.glob(file_path + "*.csv")):
     false_positives = np.maximum(num_cells - true_positives,0)
     false_negatives = np.maximum(len(cells_in_image)-true_positives,0)
     #return average per image
-    score_per_image = dice_coef_loss(better_mask, yields)
+    score_per_image = dice_coef_loss_here(better_mask, yields)
     dice_coef_loss_list.append(score_per_image)
     total_true_positives.append(true_positives)
     total_false_positives.append(false_positives)
@@ -177,7 +177,6 @@ for csv_path in sorted(glob.glob(file_path + "*.csv")):
 code.interact(local=dict(globals(), **locals()))
 
 print("Mean Dice Loss")
-mean_dice_loss = np.mean(dice_coef_loss_list)
 print(mean_dice_loss)
 
 print("True Positives")
@@ -192,6 +191,21 @@ print(total_false_negatives)
 print("True Totals ")
 print(true_totals)
 
+
+
+
+tp = np.sum(total_true_positives)
+fn = np.sum(total_false_negatives)
+fp = np.sum(total_false_positives)
+total = np.sum(true_totals)
+precision = tp/(tp+fp)
+recall = tp/(tp+fn)
+f1 = 2*(precision*recall)/(precision+recall)
+cm = np.array([[tp,fn],[fp,0]])
+conf = conf_M(cm)
+
+code.interact(local=dict(globals(), **locals()))
+mean_dice_loss = np.mean(dice_coef_loss_list)
 
 
 yields[yields<0.99]=0
