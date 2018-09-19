@@ -45,14 +45,14 @@ class_names = ["healthy", "mytotic"]
 double_channel = True
 thresholding_probabilities = True
 
-lr2 = 5e-6
+lr2 = 1e-6
 decay2 = 0.0005
 
 modelpath = ""
 
 
 data_path = "/Users/Moritz/Desktop/zeiss/data/preprocessed/"
-file = "fair_cropsize=128scanner=Ainclude_negatives=Truehb=Truedouble_channel=False"
+file = "fair_cropsize=64scanner=Ainclude_negatives=Truehb=Truedouble_channel=True"
 file_path = data_path + file
 cells = np.load(file_path+".npy").astype('float32')
 masks = np.load(file_path+"masks.npy").astype('float32')
@@ -97,8 +97,8 @@ if data_augmentation:
     y_train_lu = y_train_u[:,::-1,:]
     y_train = np.vstack([y_train, y_train_l, y_train_u, y_train_lu])
 
-csv_logger_path = "/Users/Moritz/Desktop/zeiss/resources/checkpoints/fair_unet_held_back_logger_single_128.csv"
-checkpoint_path = "/Users/Moritz/Desktop/zeiss/resources/checkpoints/fair_unet_held_back_checkpoint_single_128.hdf5"
+csv_logger_path = "/Users/Moritz/Desktop/zeiss/resources/checkpoints/fair_unet_held_back_logger_double_64.csv"
+checkpoint_path = "/Users/Moritz/Desktop/zeiss/resources/checkpoints/fair_unet_held_back_checkpoint_double_64.hdf5"
 
 
 #### TRAINING ####
@@ -108,7 +108,7 @@ if train:
     csvlog = CSVLogger(csv_logger_path, append=True)
     checkpoint = ModelCheckpoint(checkpoint_path, monitor='val_loss', verbose=1, save_best_only=True, mode='auto')
     callbacks = [
-        #change_lr,
+        change_lr,
         csvlog,
         checkpoint,
     ]

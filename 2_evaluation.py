@@ -33,6 +33,7 @@ stepSize=4
 minimum_cellsize = 300
 maximum_cellsize = 2800
 thresholding_probabilities = True
+plot=False
 
 
 checkpoint_path = "/Users/Moritz/Desktop/zeiss/resources/checkpoints/checkpoint.hdf5"
@@ -62,6 +63,14 @@ for csv_path in sorted(glob.glob(file_path + "*.csv")):
         cells_in_image.append(cell_array)
         better_mask[cell_array[:,0],cell_array[:,1]]=1
         del cell_array
+    if plot:
+        fig, axs = plt.subplots(2, 2)
+        axs[0, 0].imshow(image)
+        axs[0, 1].imshow(better_mask)
+        axs[1, 0].imshow(image[580:640,1070:1125])
+        axs[1, 1].imshow(better_mask[580:640,1070:1125])
+        plt.show()
+
 
 #### Prediction ####
     margin = np.round(bounding_box_size/2).astype(int)
@@ -72,14 +81,16 @@ for csv_path in sorted(glob.glob(file_path + "*.csv")):
         for y in range(0, image.shape[1], stepSize):
             yields[x,y] = model.predict(np.expand_dims(pad_image[:,x:x+2*margin,y:y+2*margin].astype('float32'), axis=0), batch_size=1, verbose=3)[0][1]
 #### Morphological Operations ####
-    yields[yields<0.99]=0
-    yields[yields>=0.99]=1
-    kernel = np.ones((stepSize+2,stepSize+2),np.uint8)
-    dilation = cv2.dilate(yields,kernel,iterations = 1)
-    #opening = cv2.morphologyEx(yields, cv2.MORPH_OPEN, kernel)
-    #closing = cv2.morphologyEx(img, cv2.MORPH_CLOSE, kernel)
 
-    #### Evaluation ####
+    code.interact(local=dict(globals(), **locals()))
+yields[yields<0.99]=0
+yields[yields>=0.99]=1
+kernel = np.ones((stepSize+2,stepSize+2),np.uint8)
+dilation = cv2.dilate(yields,kernel,iterations = 1)
+#opening = cv2.morphologyEx(yields, cv2.MORPH_OPEN, kernel)
+#closing = cv2.morphologyEx(img, cv2.MORPH_CLOSE, kernel)
+
+#### Evaluation ####
     base_array, num_features = nd.label(dilation)
     indices = np.unique(base_array, return_counts=True)
     vals = []

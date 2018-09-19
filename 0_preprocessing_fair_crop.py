@@ -41,7 +41,7 @@ K.set_image_dim_ordering('th')
 from keras import backend as K
 from os import environ
 
-plot = False
+plot = True
 random_state = 17
 n_classes = 2
 split = 0.9
@@ -49,7 +49,7 @@ double_channel = True
 std = 0.25597024
 mean = 0.5566084
 
-save_crops = True
+save_crops = False
 dataset = "A" # A or H
 dataset2 = "H"
 hold_back_test_data = True

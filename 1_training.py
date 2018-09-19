@@ -16,13 +16,14 @@ from keras.preprocessing.image import ImageDataGenerator
 import keras.backend as K
 from sklearn.model_selection import train_test_split
 from keras.utils import to_categorical
+import pandas as pd
 import numpy as np
 import _pickle as cPickle
 import code
 import os
 
 save_outcomes = False
-train = True
+train = False
 modelsave = True
 data_augmentation = False
 batch_size = 16

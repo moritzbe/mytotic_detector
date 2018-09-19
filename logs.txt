@@ -5,3 +5,14 @@ checkpoint_path = '/Users/Moritz/Desktop/zeiss/resources/checkpoints/unet_held_b
 Trained on 1 channels (3), 60 epochs, fair crop
 csv_logger_path = "/Users/Moritz/Desktop/zeiss/resources/checkpoints/fair_unet_held_back_logger_single_64.csv"
 checkpoint_path = "/Users/Moritz/Desktop/zeiss/resources/checkpoints/fair_unet_held_back_checkpoint_single_64.hdf5"
+
+Trained on 1 channels (3), 60 epochs, fair crop, 128
+/Users/Moritz/Desktop/zeiss/resources/checkpoints/fair_unet_held_back_checkpoint_single_128.hdf5
+
+
+
+
+
+Trained on 2 channels (6), 60 epochs, fair crop, weight decay, augmentation
+csv_logger_path = "/Users/Moritz/Desktop/zeiss/resources/checkpoints/fair_unet_held_back_logger_double_64.csv"
+checkpoint_path = "/Users/Moritz/Desktop/zeiss/resources/checkpoints/fair_unet_held_back_checkpoint_double_64.hdf5"

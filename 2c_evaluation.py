@@ -27,10 +27,10 @@ from scipy import misc
 
 import os
 
-plot = True
+plot = False
 dataset = "A"
 dataset2 = "H"
-bounding_box_size = 64
+bounding_box_size = 128
 minimum_cellsize = 300
 maximum_cellsize = 2800
 double_channel=False
@@ -45,7 +45,8 @@ if double_channel:
 #checkpoint_path = "/Users/Moritz/Desktop/zeiss/resources/checkpoints/unet_held_back_checkpoint.hdf5"
 # checkpoint_path = "/Users/Moritz/Desktop/zeiss/resources/checkpoints/unet_held_back_checkpoint_double.hdf5"
 # checkpoint_path = "/Users/Moritz/Desktop/zeiss/resources/checkpoints/unet_held_back_checkpoint_double_decay.hdf5"
-checkpoint_path = "/Users/Moritz/Desktop/zeiss/resources/checkpoints/fair_unet_held_back_checkpoint_single_64.hdf5"
+# checkpoint_path = "/Users/Moritz/Desktop/zeiss/resources/checkpoints/fair_unet_held_back_checkpoint_single_64.hdf5"
+checkpoint_path = "/Users/Moritz/Desktop/zeiss/resources/checkpoints/fair_unet_held_back_checkpoint_single_128.hdf5"
 
 print("Loading trained model", checkpoint_path)
 
@@ -115,7 +116,7 @@ for csv_path in sorted(glob.glob(file_path + "*.csv")):
             #     temp_yield[temp_yield>=thres]=1
             yields[x:x+2*margin,y:y+2*margin] = np.mean((temp_yield, yields[x:x+2*margin,y:y+2*margin]), axis=0)
 
-    thres=.8
+    thres=.7
     if thresholding_probabilities:
         yields[yields<thres]=0
         yields[yields>=thres]=1
@@ -155,8 +156,8 @@ for csv_path in sorted(glob.glob(file_path + "*.csv")):
     better_mask = np.swapaxes(better_mask,0,1)
     overlap = base_array*better_mask
     discard_array, true_positives = nd.label(overlap)
-    false_positives = np.max(num_cells - true_positives,0)
-    false_negatives = np.max(len(cells_in_image)-true_positives,0)
+    false_positives = np.maximum(num_cells - true_positives,0)
+    false_negatives = np.maximum(len(cells_in_image)-true_positives,0)
     #return average per image
     score_per_image = dice_coef_loss(better_mask, yields)
     dice_coef_loss_list.append(score_per_image)
@@ -172,7 +173,6 @@ for csv_path in sorted(glob.glob(file_path + "*.csv")):
         axs[0, 1].imshow(base_array)
         axs[1, 1].imshow(better_mask)
         plt.show()
-    code.interact(local=dict(globals(), **locals()))
 
 code.interact(local=dict(globals(), **locals()))
 
